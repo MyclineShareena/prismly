@@ -76,7 +76,7 @@ with st.sidebar:
     st.write("**MyclineShareena John Peter Kennedy**")
     st.write("Northeastern University")
     st.write("INFO7375 - Branding & AI")
-    st.write("[GitHub](https://github.com) | [LinkedIn](https://linkedin.com)")
+    st.write("[GitHub](https://github.com/MyclineShareena) | [LinkedIn](https://www.linkedin.com/in/mycline-shareena-j-9b8128168/)")
     
     st.markdown("---")
     st.caption("© 2026 Brand Intelligence Pipeline")
