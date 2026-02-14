@@ -4,6 +4,7 @@ import json
 import pandas as pd
 from datetime import datetime
 import time
+from collections import Counter
 
 # Page config
 st.set_page_config(
@@ -13,130 +14,147 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS
+# Custom CSS - Madison Style
 st.markdown("""
 <style>
-    .main-header {
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: #1a1a2e;
-        margin-bottom: 0.5rem;
+    .success-banner {
+        background-color: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+        padding: 15px;
+        border-radius: 5px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 20px;
     }
-    .sub-header {
-        font-size: 1.2rem;
-        color: #666;
-        margin-bottom: 2rem;
-    }
-    .metric-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 1.5rem;
-        border-radius: 10px;
-        color: white;
+    .metric-box {
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 20px;
         text-align: center;
     }
-    .positive { 
-        background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%); 
+    .metric-label {
+        font-size: 0.9rem;
+        color: #666;
+        margin-bottom: 5px;
     }
-    .neutral { 
-        background: linear-gradient(135deg, #f2994a 0%, #f2c94c 100%); 
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #333;
     }
-    .negative { 
-        background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); 
+    .section-header {
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: #333;
+        margin-top: 30px;
+        margin-bottom: 15px;
+    }
+    .insight-card {
+        background: #f8f9fa;
+        border-left: 4px solid #667eea;
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 4px;
+    }
+    .positive-badge {
+        background: #28a745;
+        color: white;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 0.85rem;
+    }
+    .neutral-badge {
+        background: #ffc107;
+        color: #333;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 0.85rem;
+    }
+    .negative-badge {
+        background: #dc3545;
+        color: white;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 0.85rem;
     }
     .footer {
         margin-top: 3rem;
-        padding-top: 2rem;
-        border-top: 1px solid #eee;
+        padding-top: 1rem;
         text-align: center;
         color: #999;
+        font-size: 0.85rem;
+        border-top: 1px solid #e0e0e0;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Sidebar - About & Settings
+# Define RSS Feed Options (domain-based names)
+RSS_FEED_OPTIONS = {
+    "Azure Microsoft Blog": "https://azure.microsoft.com/en-us/blog/feed/",
+    "OpenAI Blog": "https://openai.com/blog/rss.xml",
+    "Google AI Blog": "http://googleaiblog.blogspot.com/atom.xml",
+    "Google Developers Blog": "https://developers.googleblog.com/feeds/posts/default",
+    "Microsoft Dev Blogs": "https://devblogs.microsoft.com/feed/"
+}
+
+# Sidebar - Search Settings
 with st.sidebar:
-    st.image("https://via.placeholder.com/300x100/667eea/ffffff?text=Brand+Intelligence", use_column_width=True)
+    st.markdown("### ⚙️ Search Settings")
+    
+    max_articles = st.slider(
+        "Posts to Fetch",
+        min_value=5,
+        max_value=50,
+        value=10,
+        help="Number of articles to analyze per feed"
+    )
+    
+    st.markdown("---")
+    
+    selected_feeds = st.multiselect(
+        "📡 RSS Feed URLs:",
+        options=list(RSS_FEED_OPTIONS.keys()),
+        default=list(RSS_FEED_OPTIONS.keys()),
+        help="Select RSS feeds to analyze"
+    )
+    
+    st.markdown("---")
     
     st.markdown("### 🎯 About This Tool")
     st.write("""
-    **Brand Intelligence Pipeline** analyzes articles from RSS feeds to extract:
-    - Sentiment (Positive/Neutral/Negative)
-    - Brand Archetypes (Hero, Sage, etc.)
-    - Strategic Insights & Recommendations
+    **Brand Intelligence Pipeline** uses AI to analyze competitor blog posts and extract:
+    - 💭 Sentiment Analysis
+    - 🎭 Brand Archetypes
+    - 💡 Strategic Insights
+    - ✅ Recommendations
     """)
     
     st.markdown("### 🛠️ Tech Stack")
-    st.write("• **Framework:** Streamlit")
+    st.write("• **Frontend:** Streamlit")
+    st.write("• **Workflow:** n8n")
     st.write("• **AI Model:** OpenAI GPT-4o-mini")
-    st.write("• **Data Source:** RSS Feeds")
-    st.write("• **Cost:** ~$0.08 per 100 articles")
+    st.write("• **Integration:** Webhook API")
     
     st.markdown("### 👤 Created By")
-    st.write("**MyclineShareena John Peter Kennedy**")
+    st.write("**MyclineShareena**")
     st.write("Northeastern University")
-    st.write("INFO7375 - Branding & AI")
-    st.write("[GitHub](https://github.com/MyclineShareena) | [LinkedIn](https://www.linkedin.com/in/mycline-shareena-j-9b8128168/)")
+    st.write("INFO 7375 - Branding & AI")
+    st.write("[GitHub](https://github.com/MyclineShareena)")
     
     st.markdown("---")
-    st.caption("© 2026 Brand Intelligence Pipeline")
+    st.caption("Brand Intelligence Framework v1.2")
 
-# Main content
-st.markdown('<div class="main-header">🎯 Brand Intelligence Pipeline</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-header">AI-powered brand analysis from RSS feeds using GPT-4o-mini</div>', unsafe_allow_html=True)
+# n8n Webhook URL - Production (Render Cloud)
+n8n_webhook_url = "https://brand-intelligence-n8n.onrender.com/webhook-test/brand-intelligence"
 
-# Instructions
-with st.expander("📖 How to Use This Tool", expanded=False):
-    st.markdown("""
-    1. **Enter your n8n webhook URL** in the sidebar (optional - uses default if blank)
-    2. **Add RSS feed URLs** - one per line (default feeds are pre-loaded)
-    3. **Set the number of articles** to analyze (1-50 recommended)
-    4. **Click "Analyze Feeds"** and wait for results
-    5. **View insights** - sentiment breakdown, archetypes, and recommendations
-    6. **Download** the full dataset as JSON
-    
-    **Example RSS Feeds:**
-    - Azure Blog: https://azure.microsoft.com/en-us/blog/feed/
-    - OpenAI Blog: https://openai.com/blog/rss.xml
-    - Google AI Blog: http://googleaiblog.blogspot.com/atom.xml
-    """)
-
-# n8n Webhook URL - HARDCODED
-n8n_webhook_url = "http://localhost:5678/webhook-test/brand-intelligence"
-
-with st.sidebar:
-    st.markdown("---")
-    st.markdown("### 🔗 n8n Configuration")
-    st.success(f"✅ Connected to n8n workflow")
-    st.caption(f"Webhook: {n8n_webhook_url}")
-
-# Input Section
-st.markdown("### 📥 Input Configuration")
-
-col1, col2 = st.columns([3, 1])
-
-with col1:
-    rss_feeds = st.text_area(
-        "RSS Feed URLs (one per line):",
-        value="""https://azure.microsoft.com/en-us/blog/feed/
-https://openai.com/blog/rss.xml
-http://googleaiblog.blogspot.com/atom.xml
-https://developers.googleblog.com/feeds/posts/default
-https://devblogs.microsoft.com/feed/""",
-        height=150,
-        help="Enter RSS feed URLs, one per line. Default feeds are from major tech companies."
-    )
-
-with col2:
-    max_articles = st.number_input(
-        "Max articles per feed:",
-        min_value=1,
-        max_value=50,
-        value=10,
-        help="Limit articles per feed to control processing time and cost"
-    )
+# Main Dashboard Header
+st.title("🎯 Brand Intelligence Dashboard")
+st.markdown("---")
 
 # Analyze button
-analyze_button = st.button("🚀 Analyze Feeds", type="primary", use_container_width=True)
+analyze_button = st.button("🔍 Analyze Brand", type="primary", use_container_width=True)
 
 # Function to call n8n webhook
 def call_n8n_webhook(webhook_url, feed_urls, max_articles_per_feed):
@@ -150,7 +168,7 @@ def call_n8n_webhook(webhook_url, feed_urls, max_articles_per_feed):
         response = requests.post(
             webhook_url,
             json=payload,
-            timeout=300  # 5 minute timeout for n8n to process
+            timeout=900  # 15 minute timeout for n8n to process
         )
         
         if response.status_code == 200:
@@ -171,10 +189,11 @@ if analyze_button:
     if not n8n_webhook_url:
         st.error("⚠️ Please enter your n8n webhook URL in the sidebar!")
     else:
-        feed_urls = [url.strip() for url in rss_feeds.split("\n") if url.strip()]
+        # Get URLs from selected feeds
+        feed_urls = [RSS_FEED_OPTIONS[feed_name] for feed_name in selected_feeds]
         
         if not feed_urls:
-            st.error("⚠️ Please enter at least one RSS feed URL!")
+            st.error("⚠️ Please select at least one RSS feed!")
         else:
             st.markdown("---")
             st.markdown("### 🔄 Processing Feeds via n8n...")
@@ -192,9 +211,17 @@ if analyze_button:
                 progress_bar.progress(1.0)
                 status_text.text("✅ Analysis complete!")
                 
-                # Parse results from n8n
-                # Assuming n8n returns array of analyzed articles
-                all_results = result_data if isinstance(result_data, list) else result_data.get('results', [])
+                # Parse results from n8n - handle [{data: [...]}] structure
+                all_results = []
+                
+                if isinstance(result_data, list) and len(result_data) > 0:
+                    if isinstance(result_data[0], dict) and 'data' in result_data[0]:
+                        # n8n webhook response format: [{data: [...]}]
+                        all_results = result_data[0]['data']
+                    else:
+                        all_results = result_data
+                elif isinstance(result_data, dict) and 'data' in result_data:
+                    all_results = result_data['data']
                 
                 if not all_results:
                     st.warning("⚠️ No results returned from n8n. Check your workflow output.")
@@ -203,100 +230,199 @@ if analyze_button:
                     status_text.empty()
                     progress_bar.empty()
                     
-                    # Display Results
-                    st.markdown("---")
-                    st.markdown("### 📊 Analysis Results")
+                    # SUCCESS MESSAGE - Madison Style
+                    st.markdown(
+                        f'<div class="success-banner">✨ Madison analyzed {len(all_results)} articles successfully!</div>',
+                        unsafe_allow_html=True
+                    )
+                    
+                    # Parse and flatten data
+                    parsed_data = []
+                    for article in all_results:
+                        ai_analysis = article.get('ai_analysis', {})
+                        sentiment_obj = ai_analysis.get('sentiment', {})
+                        archetype_obj = ai_analysis.get('archetype', {})
+                        insights = ai_analysis.get('insights', [])
+                        
+                        parsed_data.append({
+                            'title': article.get('title', 'N/A'),
+                            'link': article.get('link', ''),
+                            'source': article.get('source', 'N/A'),
+                            'published_at': article.get('published_at', ''),
+                            'summary': article.get('summary', '')[:200] + '...',
+                            'sentiment': sentiment_obj.get('classification', 'neutral'),
+                            'confidence': sentiment_obj.get('confidence', 0),
+                            'sentiment_reasoning': sentiment_obj.get('reasoning', ''),
+                            'archetype': archetype_obj.get('primary', 'Unknown'),
+                            'archetype_reasoning': archetype_obj.get('reasoning', ''),
+                            'insight_category': insights[0].get('category', 'N/A') if insights else 'N/A',
+                            'insight': insights[0].get('insight', 'N/A') if insights else 'N/A',
+                            'recommendation': insights[0].get('recommendation', 'N/A') if insights else 'N/A'
+                        })
                     
                     # Calculate metrics
-                    sentiments = {'positive': 0, 'neutral': 0, 'negative': 0}
-                    archetypes = {}
+                    sentiments = Counter([d['sentiment'] for d in parsed_data])
+                    archetypes = Counter([d['archetype'] for d in parsed_data])
+                    avg_confidence = sum([d['confidence'] for d in parsed_data]) / len(parsed_data)
                     
-                    for result in all_results:
-                        sent = result.get('sentiment', 'neutral').lower()
-                        if sent in sentiments:
-                            sentiments[sent] += 1
-                        
-                        arch = result.get('archetype', 'Unknown')
-                        archetypes[arch] = archetypes.get(arch, 0) + 1
-                    
-                    # Sentiment metrics
+                    # KEY METRICS - Madison Style
+                    st.markdown("### 📊 Key Metrics")
                     col1, col2, col3, col4 = st.columns(4)
                     
                     with col1:
-                        st.metric("📰 Total Articles", len(all_results))
+                        st.markdown("""
+                        <div class="metric-box">
+                            <div class="metric-label">Total Articles</div>
+                            <div class="metric-value">{}</div>
+                        </div>
+                        """.format(len(parsed_data)), unsafe_allow_html=True)
                     
                     with col2:
-                        st.metric("😊 Positive", sentiments['positive'])
+                        st.markdown("""
+                        <div class="metric-box" style="border-left: 4px solid #28a745;">
+                            <div class="metric-label">Positive Sentiment</div>
+                            <div class="metric-value">{}</div>
+                        </div>
+                        """.format(sentiments.get('positive', 0)), unsafe_allow_html=True)
                     
                     with col3:
-                        st.metric("😐 Neutral", sentiments['neutral'])
+                        st.markdown("""
+                        <div class="metric-box" style="border-left: 4px solid #ffc107;">
+                            <div class="metric-label">Neutral Sentiment</div>
+                            <div class="metric-value">{}</div>
+                        </div>
+                        """.format(sentiments.get('neutral', 0)), unsafe_allow_html=True)
                     
                     with col4:
-                        st.metric("😟 Negative", sentiments['negative'])
+                        st.markdown("""
+                        <div class="metric-box" style="border-left: 4px solid #dc3545;">
+                            <div class="metric-label">Avg Confidence</div>
+                            <div class="metric-value">{:.0f}%</div>
+                        </div>
+                        """.format(avg_confidence * 100), unsafe_allow_html=True)
                     
-                    st.markdown("<br>", unsafe_allow_html=True)
+                    # VISUALIZATIONS
+                    st.markdown("---")
+                    col1, col2 = st.columns(2)
                     
-                    # Archetype breakdown
-                    st.markdown("#### 🎭 Brand Archetype Distribution")
-                    archetype_df = pd.DataFrame(list(archetypes.items()), columns=['Archetype', 'Count'])
-                    archetype_df = archetype_df.sort_values('Count', ascending=False)
-                    st.bar_chart(archetype_df.set_index('Archetype'))
-                
-                # Article table
-                st.markdown("#### 📄 Detailed Article Analysis")
-                
-                df = pd.DataFrame(all_results)
-                df['Sentiment'] = df['sentiment'].apply(lambda x: x.upper())
-                df['Confidence'] = df['confidence'].apply(lambda x: f"{x:.2f}")
-                
-                display_df = df[['title', 'Sentiment', 'Confidence', 'archetype', 'insight']].head(20)
-                st.dataframe(
-                    display_df,
-                    column_config={
-                        "title": "Article Title",
-                        "Sentiment": st.column_config.TextColumn("Sentiment", width="small"),
-                        "Confidence": st.column_config.TextColumn("Confidence", width="small"),
-                        "archetype": "Archetype",
-                        "insight": "Key Insight"
-                    },
-                    hide_index=True,
-                    use_container_width=True
-                )
-                
-                # Download options
-                st.markdown("---")
-                st.markdown("### 💾 Download Results")
-                
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    # JSON download
-                    json_data = json.dumps(all_results, indent=2)
-                    st.download_button(
-                        label="📥 Download JSON Dataset",
-                        data=json_data,
-                        file_name=f"brand_intelligence_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-                        mime="application/json",
-                        use_container_width=True
+                    with col1:
+                        st.markdown("### 🎭 Brand Archetype Distribution")
+                        archetype_df = pd.DataFrame(
+                            list(archetypes.items()),
+                            columns=['Archetype', 'Count']
+                        ).sort_values('Count', ascending=False)
+                        st.bar_chart(archetype_df.set_index('Archetype'))
+                    
+                    with col2:
+                        st.markdown("### 💭 Sentiment Breakdown")
+                        sentiment_df = pd.DataFrame(
+                            list(sentiments.items()),
+                            columns=['Sentiment', 'Count']
+                        )
+                        st.bar_chart(sentiment_df.set_index('Sentiment'))
+                    
+                    # INSIGHTS OVERVIEW TABLE
+                    st.markdown("---")
+                    st.markdown("### 📝 Article Insights Overview")
+                    
+                    df = pd.DataFrame(parsed_data)
+                    display_df = pd.DataFrame({
+                        'Title': df['title'].apply(lambda x: x[:60] + '...' if len(x) > 60 else x),
+                        'Source': df['source'].str.replace('_', ' ').str.title(),
+                        'Sentiment': df['sentiment'].str.capitalize(),
+                        'Confidence': df['confidence'].apply(lambda x: f"{x:.0%}"),
+                        'Archetype': df['archetype'],
+                        'Insight': df['insight'].apply(lambda x: x[:80] + '...' if len(x) > 80 else x),
+                    })
+                    
+                    st.dataframe(
+                        display_df,
+                        column_config={
+                            "Title": st.column_config.TextColumn("Article Title", width="large"),
+                            "Source": st.column_config.TextColumn("Source", width="small"),
+                            "Sentiment": st.column_config.TextColumn("Sentiment", width="small"),
+                            "Confidence": st.column_config.TextColumn("Confidence", width="small"),
+                            "Archetype": st.column_config.TextColumn("Archetype", width="small"),
+                            "Insight": st.column_config.TextColumn("Key Insight", width="large"),
+                        },
+                        hide_index=True,
+                        use_container_width=True,
+                        height=400
                     )
-                
-                with col2:
-                    # CSV download
-                    csv_data = df.to_csv(index=False)
-                    st.download_button(
-                        label="📥 Download CSV Report",
-                        data=csv_data,
-                        file_name=f"brand_intelligence_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                        mime="text/csv",
-                        use_container_width=True
-                    )
+                    
+                    # DEEP DIVE SECTION
+                    st.markdown("---")
+                    st.markdown("### 🔍 Deep Dive Analysis")
+                    
+                    for idx, item in enumerate(parsed_data[:10]):
+                        with st.expander(f"📄 {item['title'][:100]}..."):
+                            col1, col2 = st.columns([2, 1])
+                            
+                            with col1:
+                                st.markdown(f"**🔗 Source:** {item['source'].replace('_', ' ').title()}")
+                                st.markdown(f"**📅 Published:** {item['published_at'][:10] if item['published_at'] else 'N/A'}")
+                                st.markdown(f"**🔗 [Read Full Article]({item['link']})**")
+                                
+                                st.markdown("**📝 Summary:**")
+                                st.info(item['summary'])
+                            
+                            with col2:
+                                sentiment_badge_class = f"{item['sentiment']}-badge"
+                                st.markdown(f"**💭 Sentiment**")
+                                st.markdown(f'<span class="{sentiment_badge_class}">{item["sentiment"].upper()}</span>', unsafe_allow_html=True)
+                                st.progress(item['confidence'])
+                                st.caption(f"Confidence: {item['confidence']:.0%}")
+                                
+                                st.markdown("**🎭 Archetype**")
+                                st.markdown(f"**{item['archetype']}**")
+                            
+                            st.markdown("---")
+                            
+                            st.markdown("**🧠 Sentiment Reasoning:**")
+                            st.write(item['sentiment_reasoning'])
+                            
+                            st.markdown("**🎯 Archetype Reasoning:**")
+                            st.write(item['archetype_reasoning'])
+                            
+                            st.markdown("**💡 Strategic Insight:**")
+                            st.markdown(f'<div class="insight-card"><strong>{item["insight_category"].replace("_", " ").title()}:</strong> {item["insight"]}</div>', unsafe_allow_html=True)
+                            
+                            st.markdown("**✅ Recommendation:**")
+                            st.success(item['recommendation'])
+                    
+                    # DOWNLOAD OPTIONS
+                    st.markdown("---")
+                    st.markdown("### 💾 Export Data")
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        json_data = json.dumps(all_results, indent=2)
+                        st.download_button(
+                            label="📥 Download Full JSON Dataset",
+                            data=json_data,
+                            file_name=f"brand_intelligence_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                            mime="application/json",
+                            use_container_width=True
+                        )
+                    
+                    with col2:
+                        csv_data = df.to_csv(index=False)
+                        st.download_button(
+                            label="📥 Download CSV Report",
+                            data=csv_data,
+                            file_name=f"brand_intelligence_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                            mime="text/csv",
+                            use_container_width=True
+                        )
             else:
                 st.warning("⚠️ No articles were successfully analyzed.")
 
 # Footer
 st.markdown("""
 <div class="footer">
-    <p>Built with Streamlit + OpenAI GPT-4o-mini | Assignment 5 - INFO7375 Branding & AI</p>
-    <p>MyclineShareena John Peter Kennedy | Northeastern University | Spring 2026</p>
+    <p><strong>Brand Intelligence Pipeline</strong> - AI-Powered Competitive Analysis</p>
+    <p>Built with Streamlit + n8n + OpenAI GPT-4o-mini | Assignment 5 - INFO7375 Branding & AI</p>
+    <p>Shareena Mycline | Northeastern University | Spring 2026</p>
 </div>
 """, unsafe_allow_html=True)
