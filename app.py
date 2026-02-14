@@ -1,6 +1,5 @@
 import streamlit as st
-import feedparser
-import openai
+import requests
 import json
 import pandas as pd
 from datetime import datetime
@@ -88,7 +87,7 @@ st.markdown('<div class="sub-header">AI-powered brand analysis from RSS feeds us
 # Instructions
 with st.expander("📖 How to Use This Tool", expanded=False):
     st.markdown("""
-    1. **Enter your OpenAI API key** in the sidebar (required for analysis)
+    1. **Enter your n8n webhook URL** in the sidebar (optional - uses default if blank)
     2. **Add RSS feed URLs** - one per line (default feeds are pre-loaded)
     3. **Set the number of articles** to analyze (1-50 recommended)
     4. **Click "Analyze Feeds"** and wait for results
@@ -101,16 +100,14 @@ with st.expander("📖 How to Use This Tool", expanded=False):
     - Google AI Blog: http://googleaiblog.blogspot.com/atom.xml
     """)
 
-# API Key input (in sidebar)
+# n8n Webhook URL - HARDCODED
+n8n_webhook_url = "http://localhost:5678/webhook-test/brand-intelligence"
+
 with st.sidebar:
     st.markdown("---")
-    st.markdown("### 🔑 OpenAI API Key")
-    api_key = st.text_input(
-        "Enter your API key:",
-        type="password",
-        placeholder="sk-...",
-        help="Get your API key from https://platform.openai.com/api-keys"
-    )
+    st.markdown("### 🔗 n8n Configuration")
+    st.success(f"✅ Connected to n8n workflow")
+    st.caption(f"Webhook: {n8n_webhook_url}")
 
 # Input Section
 st.markdown("### 📥 Input Configuration")
@@ -141,70 +138,38 @@ with col2:
 # Analyze button
 analyze_button = st.button("🚀 Analyze Feeds", type="primary", use_container_width=True)
 
-# Analysis function
-def analyze_article(title, content, link, api_key):
-    """Analyze a single article using GPT-4o-mini"""
+# Function to call n8n webhook
+def call_n8n_webhook(webhook_url, feed_urls, max_articles_per_feed):
+    """Call n8n webhook with RSS feed URLs"""
     try:
-        from openai import OpenAI
-        client = OpenAI(api_key=api_key)
+        payload = {
+            "feeds": feed_urls,
+            "max_articles": max_articles_per_feed
+        }
         
-        prompt = f"""Analyze this article for brand intelligence:
-
-Title: {title}
-Content: {content[:1000]}
-
-Provide analysis in JSON format:
-{{
-    "sentiment": "positive" or "neutral" or "negative",
-    "confidence": 0.0-1.0,
-    "archetype": "Hero" or "Sage" or "Innocent" or "Explorer" or "Rebel",
-    "key_insight": "One strategic insight about market trend or brand positioning",
-    "recommendation": "One actionable brand strategy recommendation"
-}}"""
-
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.3,
-            max_tokens=300
+        response = requests.post(
+            webhook_url,
+            json=payload,
+            timeout=300  # 5 minute timeout for n8n to process
         )
         
-        result = response.choices[0].message.content.strip()
-        
-        # Parse JSON (handle markdown code blocks)
-        if result.startswith("```"):
-            result = result.split("```")[1]
-            if result.startswith("json"):
-                result = result[4:]
-        
-        analysis = json.loads(result.strip())
-        
-        return {
-            "title": title,
-            "link": link,
-            "sentiment": analysis.get("sentiment", "unknown"),
-            "confidence": analysis.get("confidence", 0),
-            "archetype": analysis.get("archetype", "Unknown"),
-            "insight": analysis.get("key_insight", ""),
-            "recommendation": analysis.get("recommendation", "")
-        }
-    
+        if response.status_code == 200:
+            return response.json()
+        else:
+            st.error(f"n8n webhook returned error: {response.status_code} - {response.text}")
+            return None
+            
+    except requests.exceptions.Timeout:
+        st.error("⏱️ Request timed out. n8n workflow may be taking too long. Try reducing the number of articles.")
+        return None
     except Exception as e:
-        st.error(f"Error analyzing article: {str(e)}")
-        return {
-            "title": title,
-            "link": link,
-            "sentiment": "error",
-            "confidence": 0,
-            "archetype": "Unknown",
-            "insight": f"Analysis failed: {str(e)}",
-            "recommendation": "N/A"
-        }
+        st.error(f"Error calling n8n webhook: {str(e)}")
+        return None
 
 # Process feeds
 if analyze_button:
-    if not api_key:
-        st.error("⚠️ Please enter your OpenAI API key in the sidebar!")
+    if not n8n_webhook_url:
+        st.error("⚠️ Please enter your n8n webhook URL in the sidebar!")
     else:
         feed_urls = [url.strip() for url in rss_feeds.split("\n") if url.strip()]
         
@@ -212,108 +177,70 @@ if analyze_button:
             st.error("⚠️ Please enter at least one RSS feed URL!")
         else:
             st.markdown("---")
-            st.markdown("### 🔄 Processing Feeds...")
+            st.markdown("### 🔄 Processing Feeds via n8n...")
             
             progress_bar = st.progress(0)
             status_text = st.empty()
             
-            all_results = []
-            total_feeds = len(feed_urls)
+            status_text.text(f"📡 Sending {len(feed_urls)} feeds to n8n workflow...")
+            progress_bar.progress(0.3)
             
-            for idx, feed_url in enumerate(feed_urls):
-                status_text.text(f"Fetching feed {idx+1}/{total_feeds}: {feed_url}")
+            # Call n8n webhook
+            result_data = call_n8n_webhook(n8n_webhook_url, feed_urls, max_articles)
+            
+            if result_data:
+                progress_bar.progress(1.0)
+                status_text.text("✅ Analysis complete!")
                 
-                try:
-                    # Parse RSS feed
-                    feed = feedparser.parse(feed_url)
-                    articles = feed.entries[:max_articles]
+                # Parse results from n8n
+                # Assuming n8n returns array of analyzed articles
+                all_results = result_data if isinstance(result_data, list) else result_data.get('results', [])
+                
+                if not all_results:
+                    st.warning("⚠️ No results returned from n8n. Check your workflow output.")
+                else:
+                    time.sleep(1)
+                    status_text.empty()
+                    progress_bar.empty()
                     
-                    st.info(f"📰 Found {len(articles)} articles from {feed_url}")
+                    # Display Results
+                    st.markdown("---")
+                    st.markdown("### 📊 Analysis Results")
                     
-                    # Analyze each article
-                    for art_idx, article in enumerate(articles):
-                        status_text.text(f"Analyzing article {art_idx+1}/{len(articles)} from feed {idx+1}/{total_feeds}")
+                    # Calculate metrics
+                    sentiments = {'positive': 0, 'neutral': 0, 'negative': 0}
+                    archetypes = {}
+                    
+                    for result in all_results:
+                        sent = result.get('sentiment', 'neutral').lower()
+                        if sent in sentiments:
+                            sentiments[sent] += 1
                         
-                        title = article.get('title', 'No title')
-                        link = article.get('link', '')
-                        content = article.get('summary', article.get('description', ''))
-                        
-                        result = analyze_article(title, content, link, api_key)
-                        result['source'] = feed_url
-                        all_results.append(result)
-                        
-                        # Update progress
-                        progress = (idx * max_articles + art_idx + 1) / (total_feeds * max_articles)
-                        progress_bar.progress(min(progress, 1.0))
-                        
-                        # Rate limiting
-                        time.sleep(0.5)
-                
-                except Exception as e:
-                    st.warning(f"⚠️ Failed to process feed {feed_url}: {str(e)}")
-            
-            progress_bar.progress(1.0)
-            status_text.text("✅ Analysis complete!")
-            
-            # Display results
-            if all_results:
-                st.markdown("---")
-                st.markdown("### 📊 Analysis Results")
-                
-                # Summary metrics
-                total = len(all_results)
-                positive = sum(1 for r in all_results if r['sentiment'] == 'positive')
-                neutral = sum(1 for r in all_results if r['sentiment'] == 'neutral')
-                negative = sum(1 for r in all_results if r['sentiment'] == 'negative')
-                
-                # Archetype counts
-                archetypes = {}
-                for r in all_results:
-                    arch = r['archetype']
-                    archetypes[arch] = archetypes.get(arch, 0) + 1
-                
-                # Display metrics
-                col1, col2, col3, col4 = st.columns(4)
-                
-                with col1:
-                    st.markdown(f"""
-                    <div class="metric-card">
-                        <h1>{total}</h1>
-                        <p>Total Articles</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
-                with col2:
-                    st.markdown(f"""
-                    <div class="metric-card positive">
-                        <h1>{positive}</h1>
-                        <p>Positive</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
-                with col3:
-                    st.markdown(f"""
-                    <div class="metric-card neutral">
-                        <h1>{neutral}</h1>
-                        <p>Neutral</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
-                with col4:
-                    st.markdown(f"""
-                    <div class="metric-card negative">
-                        <h1>{negative}</h1>
-                        <p>Negative</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
-                st.markdown("<br>", unsafe_allow_html=True)
-                
-                # Archetype breakdown
-                st.markdown("#### 🎭 Brand Archetype Distribution")
-                archetype_df = pd.DataFrame(list(archetypes.items()), columns=['Archetype', 'Count'])
-                archetype_df = archetype_df.sort_values('Count', ascending=False)
-                st.bar_chart(archetype_df.set_index('Archetype'))
+                        arch = result.get('archetype', 'Unknown')
+                        archetypes[arch] = archetypes.get(arch, 0) + 1
+                    
+                    # Sentiment metrics
+                    col1, col2, col3, col4 = st.columns(4)
+                    
+                    with col1:
+                        st.metric("📰 Total Articles", len(all_results))
+                    
+                    with col2:
+                        st.metric("😊 Positive", sentiments['positive'])
+                    
+                    with col3:
+                        st.metric("😐 Neutral", sentiments['neutral'])
+                    
+                    with col4:
+                        st.metric("😟 Negative", sentiments['negative'])
+                    
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    
+                    # Archetype breakdown
+                    st.markdown("#### 🎭 Brand Archetype Distribution")
+                    archetype_df = pd.DataFrame(list(archetypes.items()), columns=['Archetype', 'Count'])
+                    archetype_df = archetype_df.sort_values('Count', ascending=False)
+                    st.bar_chart(archetype_df.set_index('Archetype'))
                 
                 # Article table
                 st.markdown("#### 📄 Detailed Article Analysis")
