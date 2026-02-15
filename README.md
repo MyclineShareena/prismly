@@ -34,7 +34,7 @@ AI-powered brand sentiment and archetype analyzer that processes RSS feeds throu
 
 ## Live Demo
 **Streamlit App:** https://brand-intelligence-pipeline.streamlit.app/  
-**n8n Workflow:** https://brand-intelligence-n8n.onrender.com  
+**n8n Workflow:** [https://brand-intelligence-n8n.onrender.com](https://brand-intelligence-n8n.onrender.com/workflow/BmxsjuLzbQO8O1wo)  
 **Status:** ✅ Deployed to production (Render + Streamlit Cloud)
 
 ## Tech Stack
