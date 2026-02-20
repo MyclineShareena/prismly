@@ -147,7 +147,7 @@ with st.sidebar:
     st.caption("Brand Intelligence Framework v1.2")
 
 # n8n Webhook URL - Production (Render Cloud)
-n8n_webhook_url = "https://brand-intelligence-n8n.onrender.com/webhook-test/brand-intelligence"
+n8n_webhook_url = "https://brand-intelligence-n8n.onrender.com/webhook/brand-intelligence"
 
 # Main Dashboard Header
 st.title("🎯 Brand Intelligence Dashboard")
