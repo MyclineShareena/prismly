@@ -34,7 +34,7 @@ AI-powered brand sentiment and archetype analyzer that processes RSS feeds throu
 
 ## Live Demo
 **Streamlit App:** https://brand-intelligence-pipeline.streamlit.app/  
-**n8n Workflow:** https://brand-intelligence-n8n.onrender.com  
+**n8n Workflow:** [https://brand-intelligence-n8n.onrender.com](https://brand-intelligence-n8n.onrender.com/workflow/BmxsjuLzbQO8O1wo)  
 **Status:** ✅ Deployed to production (Render + Streamlit Cloud)
 
 ## Tech Stack
@@ -414,19 +414,6 @@ brand-intelligence-pipeline/
   4. Test OpenAI node manually in workflow
   5. Check Render logs for API errors
 
-## Future Enhancements
-- [x] **Cloud n8n Deployment:** ✅ COMPLETED - Deployed to Render.com
-- [x] **Streamlit Cloud Deployment:** ✅ COMPLETED - Live at brand-intelligence-pipeline.streamlit.app
-- [ ] **Caching:** Store results in Redis/SQLite for faster repeated analysis
-- [ ] **Export Options:** Add JSON/CSV download buttons
-- [ ] **Historical Tracking:** Track sentiment trends over time (weekly/monthly)
-- [ ] **Competitor Comparison:** Side-by-side brand archetype analysis
-- [ ] **Email Reports:** Schedule weekly digest emails
-- [ ] **Real-time Updates:** WebSocket connection for live workflow progress
-- [ ] **Custom Feeds:** Allow users to add their own RSS feeds via UI
-- [ ] **Multi-language:** Support non-English RSS feeds
-- [ ] **Advanced Filtering:** Filter by date range, sentiment, archetype
-
 ## Technical Specifications
 - **Python Version:** 3.9+
 - **Streamlit Version:** 1.31.0+
@@ -446,7 +433,7 @@ brand-intelligence-pipeline/
 
 ### ✅ Live URLs
 - **Streamlit App:** https://brand-intelligence-pipeline.streamlit.app
-- **n8n Workflow:** https://brand-intelligence-n8n.onrender.com
+- **n8n Workflow:** [https://brand-intelligence-n8n.onrender.com](https://brand-intelligence-n8n.onrender.com/workflow/BmxsjuLzbQO8O1wo)
 - **Webhook Endpoint:** https://brand-intelligence-n8n.onrender.com/webhook/brand-intelligence
 
 ### 🚀 Deployment Details
@@ -462,53 +449,10 @@ brand-intelligence-pipeline/
 - **Rate Limits:** Depends on OpenAI API tier
 - **Storage:** None (stateless analysis)
 
-## Credits & Attribution
-- **Built by:** MyclineShareena John Peter Kennedy
-- **Student ID:** [Your Northeastern ID]
-- **Course:** INFO7375 - Branding & AI (Spring 2026)
-- **Professor:** [Professor Name]
-- **Institution:** Northeastern University
-- **Assignment:** Assignment 5 - Wrap Your Tool & Know Your Market
-- **Framework:** Madison Brand Intelligence Framework
-- **Technologies:** n8n (Workflow Automation), Streamlit (Frontend), OpenAI GPT-4o-mini (AI)
-- **Deployment:** Render.com (n8n), Streamlit Cloud (Frontend)
-
-## Contact & Links
-- **Email:** mycline.s@northeastern.edu
-- **GitHub Repository:** https://github.com/YOUR_USERNAME/brand-intelligence-pipeline
-- **LinkedIn:** [Your LinkedIn Profile]
-- **Live Demo:** https://brand-intelligence-pipeline.streamlit.app
-
-## Assignment 5 Submission Checklist
-- [x] Streamlit app created with webhook integration
-- [x] n8n workflow with dynamic article control (slider)
-- [x] README with comprehensive deployment instructions
-- [x] requirements.txt with all dependencies
-- [x] ✅ **Deployed to Streamlit Cloud** (https://brand-intelligence-pipeline.streamlit.app)
-- [x] ✅ **n8n deployed to Render** (https://brand-intelligence-n8n.onrender.com)
-- [x] RENDER_DEPLOYMENT_GUIDE.md with step-by-step instructions
-- [ ] Test with 3 users (document in Assignment 5 submission doc)
-- [ ] Competitor analysis completed (Brand24, Crayon, Feedly AI)
-- [ ] Trademark research completed ("Brand Intelligence")
-- [ ] Positioning matrix created (2x2 grid)
-- [ ] Submit PDF by February 14, 2026 at 11:59 PM
-
-## License
-Educational project - Northeastern University © 2026  
-For academic use only. Not for commercial distribution.
-
----
-
-**Last Updated:** February 14, 2026  
-**Version:** 2.0.0 (Production Deployment - Render + Streamlit Cloud)  
-**Status:** ✅ **LIVE IN PRODUCTION**
 
 **Quick Links:**
 - 🌐 [Live App](https://brand-intelligence-pipeline.streamlit.app)
-- 🔧 [n8n Workflow](https://brand-intelligence-n8n.onrender.com)
-- 📚 [Deployment Guide](RENDER_DEPLOYMENT_GUIDE.md)
-- 📖 [Assignment 5 Doc](../Assignment_5_Final/)
-
+- 🔧 [n8n Workflow]([https://brand-intelligence-n8n.onrender.com](https://brand-intelligence-n8n.onrender.com/workflow/BmxsjuLzbQO8O1wo))
 ---
 
 *Built with ❤️ for INFO7375 - Branding & AI at Northeastern University*
