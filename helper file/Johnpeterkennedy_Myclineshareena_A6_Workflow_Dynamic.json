@@ -1,0 +1,302 @@
+{
+  "name": "Brand_Intelligence_Dynamic_Feeds",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "brand-intelligence",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1200,
+        400
+      ],
+      "id": "webhook-start",
+      "name": "Webhook",
+      "webhookId": "25708d9c-3a9f-47c4-89df-5d73e460349b"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract feeds, max_articles, and API key from webhook payload\nconst input = $input.item.json;\n\nconsole.log('=== WEBHOOK PAYLOAD ===');\nconsole.log('Input:', JSON.stringify(input, null, 2));\n\n// Extract feeds array\nlet feeds = [];\nif (input.feeds && Array.isArray(input.feeds)) {\n  feeds = input.feeds;\n} else if (input.body && input.body.feeds && Array.isArray(input.body.feeds)) {\n  feeds = input.body.feeds;\n}\n\n// Extract max_articles\nlet maxArticles = 10; // default\nif (input.max_articles !== undefined) {\n  maxArticles = Number(input.max_articles);\n} else if (input.body && input.body.max_articles !== undefined) {\n  maxArticles = Number(input.body.max_articles);\n}\n\n// Extract OpenAI API key\nlet apiKey = '';\nif (input.openai_api_key) {\n  apiKey = input.openai_api_key;\n} else if (input.body && input.body.openai_api_key) {\n  apiKey = input.body.openai_api_key;\n}\n\nconsole.log('Extracted feeds:', feeds);\nconsole.log('Max articles per feed:', maxArticles);\nconsole.log('API key provided:', apiKey ? 'Yes' : 'No');\n\n// Return one item per feed URL\nconst outputs = feeds.map(feedUrl => ({\n  json: {\n    feed_url: feedUrl,\n    max_articles: maxArticles,\n    openai_api_key: apiKey\n  }\n}));\n\nreturn outputs;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -960,
+        400
+      ],
+      "id": "extract-feeds",
+      "name": "Extract Feeds & Settings"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.feed_url }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        -720,
+        400
+      ],
+      "id": "dynamic-rss-reader",
+      "name": "RSS Feed Read",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Limit articles per feed and add metadata\nconst maxArticles = $('Extract Feeds & Settings').item.json.max_articles || 10;\nconst feedUrl = $('Extract Feeds & Settings').item.json.feed_url;\nconst apiKey = $('Extract Feeds & Settings').item.json.openai_api_key || '';\nconst items = $input.all();\n\n// Determine source name from URL\nlet sourceName = 'unknown_feed';\nif (feedUrl.includes('azure.microsoft.com')) sourceName = 'azure_blog';\nelse if (feedUrl.includes('openai.com')) sourceName = 'openai_blog';\nelse if (feedUrl.includes('google') && feedUrl.includes('ai')) sourceName = 'google_ai_blog';\nelse if (feedUrl.includes('developers.googleblog.com')) sourceName = 'google_dev_blog';\nelse if (feedUrl.includes('devblogs.microsoft.com')) sourceName = 'microsoft_dev_blog';\nelse if (feedUrl.includes('artificialintelligence-news')) sourceName = 'ai_news';\nelse {\n  // Extract domain name as fallback\n  try {\n    const url = new URL(feedUrl);\n    sourceName = url.hostname.replace('www.', '').replace('.com', '').replace('.', '_');\n  } catch (e) {\n    sourceName = 'custom_feed';\n  }\n}\n\n// Limit and format articles - INCLUDE API KEY\nconst limitedItems = items.slice(0, maxArticles).map(item => ({\n  json: {\n    source: sourceName,\n    title: item.json.title || '',\n    url: item.json.link || '',\n    published_at: item.json.pubDate ? new Date(item.json.pubDate).toISOString() : '',\n    author: item.json.creator || item.json.author?.name || null,\n    summary: item.json['content:encodedSnippet'] || item.json.contentSnippet || '',\n    categories: item.json.categories || [],\n    collection_date: new Date().toISOString(),\n    openai_api_key: apiKey  // Pass API key forward\n  }\n}));\n\nreturn limitedItems;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -480,
+        400
+      ],
+      "id": "format-articles",
+      "name": "Format & Limit Articles"
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -240,
+        400
+      ],
+      "id": "wait-node",
+      "name": "Wait",
+      "webhookId": "7642c20b-09d0-45fa-bccd-965e12c1716f"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        0,
+        400
+      ],
+      "id": "loop-items",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "jsCode": "const article = $input.item.json;\n\nreturn {\n  json: {\n    article_title: article.title,\n    article_url: article.url,\n    article_source: article.source,\n    article_published_at: article.published_at,\n    article_summary: article.summary,\n    openai_api_key: article.openai_api_key || '',  // Pass API key forward\n    body: {\n      model: 'gpt-4o-mini',\n      messages: [\n        {\n          role: 'user',\n          content: `You are a Prismly analyst specializing in competitive analysis and brand positioning.\n\nAnalyze the following article and provide a comprehensive brand analysis assessment:\n\n**Article Details:**\nTitle: ${article.title}\nSummary: ${article.summary}\nSource: ${article.source}\n\n**Your Task:**\nBased on the article content, determine:\n1. **Sentiment**: Is the overall tone positive, neutral, or negative toward the subject?\n2. **Brand Archetype**: Which brand archetype does this content align with (Hero, Sage, Rebel, Creator, Caregiver, Magician, Explorer, Ruler, Innocent, Lover, Jester, or Everyman)?\n3. **Strategic Insights**: What are the key market trends, competitive moves, or strategic implications?\n\n**Output Format:**\nReturn ONLY a valid JSON object with this structure (fill in actual analyzed values, not placeholders):\n\n{\n  \"sentiment\": {\n    \"classification\": \"positive|neutral|negative\",\n    \"confidence\": 0.85,\n    \"reasoning\": \"Explain why you classified it this way based on the content\"\n  },\n  \"archetype\": {\n    \"primary\": \"Hero|Sage|Rebel|Creator|Caregiver|Magician|Explorer|Ruler|Innocent|Lover|Jester|Everyman\",\n    \"reasoning\": \"Explain why this archetype fits based on the messaging and positioning\"\n  },\n  \"insights\": [\n    {\n      \"category\": \"market_trend|competitive_move|innovation|crisis|opportunity\",\n      \"insight\": \"Key finding from the article\",\n      \"recommendation\": \"Actionable recommendation based on this insight\"\n    }\n  ]\n}\n\nReturn only the JSON object, no markdown formatting or explanations outside the JSON.`\n        }\n      ],\n      temperature: 0.3,\n      max_tokens: 800\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        320
+      ],
+      "id": "prepare-ai-prompt",
+      "name": "Prepare AI Analysis"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.openai_api_key }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        480,
+        320
+      ],
+      "id": "openai-request",
+      "name": "Call OpenAI API"
+    },
+    {
+      "parameters": {
+        "jsCode": "const httpResponse = $input.item.json;\nconst promptData = $('Prepare AI Analysis').item.json;\n\nlet aiAnalysis = {};\ntry {\n  const content = httpResponse.choices[0].message.content;\n  const cleaned = content.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n  aiAnalysis = JSON.parse(cleaned);\n} catch (e) {\n  aiAnalysis = {\n    sentiment: { classification: 'unknown', confidence: 0, reasoning: 'Parse error' },\n    archetype: { primary: 'Unknown', reasoning: 'Parse error' },\n    insights: []\n  };\n}\n\nreturn {\n  json: {\n    title: promptData.article_title || '',\n    link: promptData.article_url || '',\n    source: promptData.article_source || '',\n    published_at: promptData.article_published_at || '',\n    summary: promptData.article_summary || '',\n    ai_analysis: aiAnalysis\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        320
+      ],
+      "id": "parse-ai-response",
+      "name": "Parse AI Response"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        240,
+        480
+      ],
+      "id": "aggregate-results",
+      "name": "Aggregate Results"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        480,
+        480
+      ],
+      "id": "respond-webhook",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Feeds & Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Feeds & Settings": {
+      "main": [
+        [
+          {
+            "node": "RSS Feed Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Feed Read": {
+      "main": [
+        [
+          {
+            "node": "Format & Limit Articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format & Limit Articles": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Results",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare AI Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare AI Analysis": {
+      "main": [
+        [
+          {
+            "node": "Call OpenAI API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call OpenAI API": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Response": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Results": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "dynamic-v1",
+  "tags": []
+}

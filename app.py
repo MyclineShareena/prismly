@@ -8,7 +8,7 @@ from collections import Counter
 
 # Page config
 st.set_page_config(
-    page_title="Brand Intelligence Pipeline",
+    page_title="Prismly",
     page_icon="🎯",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -90,8 +90,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Define RSS Feed Options (domain-based names)
-RSS_FEED_OPTIONS = {
+# Define Default RSS Feed Options (domain-based names)
+DEFAULT_RSS_FEEDS = {
     "Azure Microsoft Blog": "https://azure.microsoft.com/en-us/blog/feed/",
     "OpenAI Blog": "https://openai.com/blog/rss.xml",
     "Google AI Blog": "http://googleaiblog.blogspot.com/atom.xml",
@@ -101,6 +101,20 @@ RSS_FEED_OPTIONS = {
 
 # Sidebar - Search Settings
 with st.sidebar:
+    st.markdown("### 🔑 API Configuration")
+    
+    openai_api_key = st.text_input(
+        "OpenAI API Key:",
+        type="password",
+        help="Enter your OpenAI API key. Get one at https://platform.openai.com/api-keys",
+        placeholder="sk-..."
+    )
+    
+    if not openai_api_key:
+        st.warning("⚠️ Please enter your OpenAI API key to use the analysis feature.")
+    
+    st.markdown("---")
+    
     st.markdown("### ⚙️ Search Settings")
     
     max_articles = st.slider(
@@ -113,18 +127,50 @@ with st.sidebar:
     
     st.markdown("---")
     
-    selected_feeds = st.multiselect(
-        "📡 RSS Feed URLs:",
-        options=list(RSS_FEED_OPTIONS.keys()),
-        default=list(RSS_FEED_OPTIONS.keys()),
-        help="Select RSS feeds to analyze"
+    # Feed selection mode
+    feed_mode = st.radio(
+        "📡 Feed Selection Mode:",
+        ["Preset Feeds", "Custom Feeds"],
+        help="Choose preset feeds or enter your own RSS URLs"
     )
+    
+    selected_feeds = []
+    custom_feed_urls = []
+    
+    if feed_mode == "Preset Feeds":
+        selected_feeds = st.multiselect(
+            "Select Preset RSS Feeds:",
+            options=list(DEFAULT_RSS_FEEDS.keys()),
+            default=list(DEFAULT_RSS_FEEDS.keys()),
+            help="Select from curated RSS feeds"
+        )
+    else:
+        st.markdown("**Enter Custom RSS Feed URLs** (one per line):")
+        custom_feeds_input = st.text_area(
+            "RSS URLs:",
+            value="https://azure.microsoft.com/en-us/blog/feed/\nhttps://openai.com/blog/rss.xml",
+            height=200,
+            help="Enter RSS feed URLs, one per line"
+        )
+        
+        # Parse custom feeds
+        if custom_feeds_input.strip():
+            custom_feed_urls = [
+                url.strip() 
+                for url in custom_feeds_input.split('\n') 
+                if url.strip() and url.strip().startswith('http')
+            ]
+            
+            if custom_feed_urls:
+                st.success(f"✅ {len(custom_feed_urls)} custom feeds loaded")
+            else:
+                st.warning("⚠️ No valid URLs found. Make sure URLs start with http:// or https://")
     
     st.markdown("---")
     
     st.markdown("### 🎯 About This Tool")
     st.write("""
-    **Brand Intelligence Pipeline** uses AI to analyze competitor blog posts and extract:
+    **Prismly** uses AI to analyze competitor blog posts and extract:
     - 💭 Sentiment Analysis
     - 🎭 Brand Archetypes
     - 💡 Strategic Insights
@@ -144,25 +190,26 @@ with st.sidebar:
     st.write("[GitHub](https://github.com/MyclineShareena)")
     
     st.markdown("---")
-    st.caption("Brand Intelligence Framework v1.2")
+    st.caption("Prismly Framework v1.2")
 
 # n8n Webhook URL - Production (Render Cloud)
 n8n_webhook_url = "https://brand-intelligence-n8n.onrender.com/webhook/brand-intelligence"
 
 # Main Dashboard Header
-st.title("🎯 Brand Intelligence Dashboard")
+st.title("🎯 Prismly Dashboard")
 st.markdown("---")
 
 # Analyze button
 analyze_button = st.button("🔍 Analyze Brand", type="primary", use_container_width=True)
 
 # Function to call n8n webhook
-def call_n8n_webhook(webhook_url, feed_urls, max_articles_per_feed):
-    """Call n8n webhook with RSS feed URLs"""
+def call_n8n_webhook(webhook_url, feed_urls, max_articles_per_feed, api_key):
+    """Call n8n webhook with RSS feed URLs and OpenAI API key"""
     try:
         payload = {
             "feeds": feed_urls,
-            "max_articles": max_articles_per_feed
+            "max_articles": max_articles_per_feed,
+            "openai_api_key": api_key
         }
         
         response = requests.post(
@@ -186,14 +233,21 @@ def call_n8n_webhook(webhook_url, feed_urls, max_articles_per_feed):
 
 # Process feeds
 if analyze_button:
-    if not n8n_webhook_url:
+    if not openai_api_key:
+        st.error("⚠️ Please enter your OpenAI API key in the sidebar to use the analysis feature!")
+    elif not n8n_webhook_url:
         st.error("⚠️ Please enter your n8n webhook URL in the sidebar!")
     else:
-        # Get URLs from selected feeds
-        feed_urls = [RSS_FEED_OPTIONS[feed_name] for feed_name in selected_feeds]
+        # Get URLs based on feed mode
+        feed_urls = []
+        
+        if feed_mode == "Preset Feeds":
+            feed_urls = [DEFAULT_RSS_FEEDS[feed_name] for feed_name in selected_feeds]
+        else:
+            feed_urls = custom_feed_urls
         
         if not feed_urls:
-            st.error("⚠️ Please select at least one RSS feed!")
+            st.error("⚠️ Please select at least one RSS feed or enter custom URLs!")
         else:
             st.markdown("---")
             st.markdown("### 🔄 Processing Feeds via n8n...")
@@ -204,8 +258,8 @@ if analyze_button:
             status_text.text(f"📡 Sending {len(feed_urls)} feeds to n8n workflow...")
             progress_bar.progress(0.3)
             
-            # Call n8n webhook
-            result_data = call_n8n_webhook(n8n_webhook_url, feed_urls, max_articles)
+            # Call n8n webhook with API key
+            result_data = call_n8n_webhook(n8n_webhook_url, feed_urls, max_articles, openai_api_key)
             
             if result_data:
                 progress_bar.progress(1.0)
@@ -267,7 +321,7 @@ if analyze_button:
                     
                     # KEY METRICS - Madison Style
                     st.markdown("### 📊 Key Metrics")
-                    col1, col2, col3, col4 = st.columns(4)
+                    col1, col2, col3, col4, col5 = st.columns(5)
                     
                     with col1:
                         st.markdown("""
@@ -296,6 +350,14 @@ if analyze_button:
                     with col4:
                         st.markdown("""
                         <div class="metric-box" style="border-left: 4px solid #dc3545;">
+                            <div class="metric-label">Negative Sentiment</div>
+                            <div class="metric-value">{}</div>
+                        </div>
+                        """.format(sentiments.get('negative', 0)), unsafe_allow_html=True)
+                    
+                    with col5:
+                        st.markdown("""
+                        <div class="metric-box" style="border-left: 4px solid #17a2b8;">
                             <div class="metric-label">Avg Confidence</div>
                             <div class="metric-value">{:.0f}%</div>
                         </div>
@@ -421,7 +483,7 @@ if analyze_button:
 # Footer
 st.markdown("""
 <div class="footer">
-    <p><strong>Brand Intelligence Pipeline</strong> - AI-Powered Competitive Analysis</p>
+    <p><strong>Prismly</strong> - AI-Powered Competitive Analysis</p>
     <p>Built with Streamlit + n8n + OpenAI GPT-4o-mini | Assignment 5 - INFO7375 Branding & AI</p>
     <p>MyclineShareena | Northeastern University | Spring 2026</p>
 </div>

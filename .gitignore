@@ -1,13 +1,15 @@
-# Streamlit
-.streamlit/secrets.toml
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
-
-# Virtual Environment
-venv/
+*.so
+.Python
 env/
-ENV/
+venv/
+*.egg-info/
+
+# Streamlit
+.streamlit/secrets.toml
 
 # IDE
 .vscode/
@@ -18,15 +20,3 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
-
-# Logs
-*.log
-
-# Data files
-*.csv
-*.json
-!requirements.txt
-
-# API Keys
-*.txt
-!requirements.txt
