@@ -33,11 +33,19 @@ st.markdown("""
         border-radius: 8px;
         padding: 20px;
         text-align: center;
+        min-height: 120px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
     }
     .metric-label {
         font-size: 0.9rem;
         color: #666;
         margin-bottom: 5px;
+        min-height: 2.5em;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
     .metric-value {
         font-size: 2rem;
