@@ -33,13 +33,27 @@
     },
     {
       "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -720,
+        400
+      ],
+      "id": "split-feeds-loop",
+      "name": "Loop Through Feeds"
+    },
+    {
+      "parameters": {
         "url": "={{ $json.feed_url }}",
         "options": {}
       },
       "type": "n8n-nodes-base.rssFeedRead",
       "typeVersion": 1.2,
       "position": [
-        -720,
+        -560,
         400
       ],
       "id": "dynamic-rss-reader",
@@ -48,16 +62,16 @@
     },
     {
       "parameters": {
-        "jsCode": "// Limit articles per feed and add metadata\nconst maxArticles = $('Extract Feeds & Settings').item.json.max_articles || 10;\nconst feedUrl = $('Extract Feeds & Settings').item.json.feed_url;\nconst apiKey = $('Extract Feeds & Settings').item.json.openai_api_key || '';\nconst items = $input.all();\n\n// Determine source name from URL\nlet sourceName = 'unknown_feed';\nif (feedUrl.includes('azure.microsoft.com')) sourceName = 'azure_blog';\nelse if (feedUrl.includes('openai.com')) sourceName = 'openai_blog';\nelse if (feedUrl.includes('google') && feedUrl.includes('ai')) sourceName = 'google_ai_blog';\nelse if (feedUrl.includes('developers.googleblog.com')) sourceName = 'google_dev_blog';\nelse if (feedUrl.includes('devblogs.microsoft.com')) sourceName = 'microsoft_dev_blog';\nelse if (feedUrl.includes('artificialintelligence-news')) sourceName = 'ai_news';\nelse {\n  // Extract domain name as fallback\n  try {\n    const url = new URL(feedUrl);\n    sourceName = url.hostname.replace('www.', '').replace('.com', '').replace('.', '_');\n  } catch (e) {\n    sourceName = 'custom_feed';\n  }\n}\n\n// Limit and format articles - INCLUDE API KEY\nconst limitedItems = items.slice(0, maxArticles).map(item => ({\n  json: {\n    source: sourceName,\n    title: item.json.title || '',\n    url: item.json.link || '',\n    published_at: item.json.pubDate ? new Date(item.json.pubDate).toISOString() : '',\n    author: item.json.creator || item.json.author?.name || null,\n    summary: item.json['content:encodedSnippet'] || item.json.contentSnippet || '',\n    categories: item.json.categories || [],\n    collection_date: new Date().toISOString(),\n    openai_api_key: apiKey  // Pass API key forward\n  }\n}));\n\nreturn limitedItems;"
+        "jsCode": "// Get current feed metadata and ALL articles from THIS feed\nconst feedMetadata = $('Loop Through Feeds').item.json;\nconst allArticles = $input.all();\nconst maxArticles = feedMetadata.max_articles || 10;\nconst apiKey = feedMetadata.openai_api_key || '';\nconst feedUrl = feedMetadata.feed_url;\n\nconsole.log(`📰 Feed: ${feedUrl}`);\nconsole.log(`   Total articles from feed: ${allArticles.length}`);\nconsole.log(`   Limiting to: ${maxArticles}`);\n\n// Determine source name from feed URL\nlet sourceName = 'unknown_feed';\nif (feedUrl.includes('azure.microsoft.com')) sourceName = 'azure_blog';\nelse if (feedUrl.includes('openai.com')) sourceName = 'openai_blog';\nelse if (feedUrl.includes('google') && feedUrl.includes('ai')) sourceName = 'google_ai_blog';\nelse if (feedUrl.includes('developers.googleblog.com')) sourceName = 'google_dev_blog';\nelse if (feedUrl.includes('devblogs.microsoft.com')) sourceName = 'microsoft_dev_blog';\nelse if (feedUrl.includes('artificialintelligence-news')) sourceName = 'ai_news';\nelse {\n  try {\n    const url = new URL(feedUrl);\n    sourceName = url.hostname.replace('www.', '').replace('.com', '').replace(/\\./g, '_');\n  } catch (e) {\n    sourceName = 'custom_feed';\n  }\n}\n\n// Limit to maxArticles and format\nconst limitedArticles = allArticles.slice(0, maxArticles).map(item => ({\n  json: {\n    source: sourceName,\n    title: item.json.title || '',\n    url: item.json.link || '',\n    published_at: item.json.pubDate ? new Date(item.json.pubDate).toISOString() : '',\n    author: item.json.creator || item.json.author?.name || null,\n    summary: item.json['content:encodedSnippet'] || item.json.contentSnippet || '',\n    categories: item.json.categories || [],\n    collection_date: new Date().toISOString(),\n    openai_api_key: apiKey,\n    feed_source: feedUrl\n  }\n}));\n\nconsole.log(`✅ ${sourceName}: Outputting ${limitedArticles.length} articles`);\n\nreturn limitedArticles;"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -480,
+        -400,
         400
       ],
-      "id": "format-articles",
-      "name": "Format & Limit Articles"
+      "id": "limit-format-feed",
+      "name": "Limit & Format Per Feed"
     },
     {
       "parameters": {
@@ -190,6 +204,24 @@
       "main": [
         [
           {
+            "node": "Loop Through Feeds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Through Feeds": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "RSS Feed Read",
             "type": "main",
             "index": 0
@@ -201,18 +233,18 @@
       "main": [
         [
           {
-            "node": "Format & Limit Articles",
+            "node": "Limit & Format Per Feed",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Format & Limit Articles": {
+    "Limit & Format Per Feed": {
       "main": [
         [
           {
-            "node": "Wait",
+            "node": "Loop Through Feeds",
             "type": "main",
             "index": 0
           }
