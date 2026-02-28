@@ -133,16 +133,6 @@ prismly/
 
 ---
 
-## 🔒 Security
-
-Both `app.py` and the n8n workflow JSON are **safe to publish publicly**:
-- ✅ No hardcoded API keys
-- ✅ No passwords or secrets
-- ✅ Users provide their own OpenAI API key
-- ✅ Dynamic authentication only
-
----
-
 ## 🤝 Contributing
 
 Contributions welcome! Feel free to:
