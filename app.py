@@ -492,7 +492,7 @@ if analyze_button:
 st.markdown("""
 <div class="footer">
     <p><strong>Prismly</strong> - AI-Powered Competitive Analysis</p>
-    <p>Built with Streamlit + n8n + OpenAI GPT-4o-mini | Assignment 5 - INFO7375 Branding & AI</p>
+    <p>Built with Streamlit + n8n + OpenAI GPT-4o-mini | INFO7375 Branding & AI</p>
     <p>MyclineShareena | Northeastern University | Spring 2026</p>
 </div>
 """, unsafe_allow_html=True)
